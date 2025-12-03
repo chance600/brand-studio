@@ -1,0 +1,8 @@
+{
+  "name": "BrandRocket AI",
+  "description": "A viral brand growth engine using Gemini Agents for strategy, content creation, video generation, and media analysis.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
