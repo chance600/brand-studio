@@ -1,24 +1,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AspectRatio, ImageSize, VideoResolution, ActiveCampaign } from "../types";
 
-// Helper to get a fresh client instance (important for API key updates)
 const getAiClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
-// Helper to ensure paid key is selected for Veo/Pro Image
 export const ensurePaidApiKey = async (): Promise<boolean> => {
   if (window.aistudio && window.aistudio.hasSelectedApiKey && window.aistudio.openSelectKey) {
     const hasKey = await window.aistudio.hasSelectedApiKey();
     if (!hasKey) {
       await window.aistudio.openSelectKey();
-      return true; // Assume success/retry
+      return true; 
     }
   }
   return true;
 };
 
-// --- Strategy Agent (Thinking + Search) ---
+// --- Strategy ---
 
 export const generateStrategy = async (brandName: string, goals: string) => {
   const ai = getAiClient();
@@ -53,7 +51,7 @@ export const extractCampaignDetails = async (strategyText: string): Promise<Acti
   
   Return a JSON object with:
   - visualStyle: A detailed prompt describing the visual aesthetic (lighting, color palette, mood) suitable for an image generator.
-  - videoConcept: A specific, cinematic video scene description suitable for a video generation model (e.g. "Drone shot of...").
+  - videoConcept: A specific, cinematic video scene description suitable for a video generation model.
   - socialHooks: An array of 3 short, punchy social media headlines/hooks.
   - targetAudience: A 1-sentence summary of the target audience.
   `;
@@ -88,7 +86,6 @@ export const researchTrends = async (topic: string) => {
     },
   });
 
-  // Extract grounding chunks if available
   const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   const urls = chunks.map((c: any) => c.web ? { title: c.web.title, uri: c.web.uri } : null).filter((u: any) => u !== null);
 
@@ -112,7 +109,7 @@ export const optimizePrompt = async (rawInput: string, type: 'image' | 'video'):
   return response.text;
 };
 
-// --- Image Studio (Gen, Edit, Analyze) ---
+// --- Image Studio ---
 
 export const generateProImage = async (prompt: string, aspectRatio: AspectRatio, size: ImageSize) => {
   await ensurePaidApiKey();
@@ -120,14 +117,9 @@ export const generateProImage = async (prompt: string, aspectRatio: AspectRatio,
   
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',
-    contents: {
-      parts: [{ text: prompt }],
-    },
+    contents: { parts: [{ text: prompt }] },
     config: {
-      imageConfig: {
-        aspectRatio: aspectRatio,
-        imageSize: size,
-      },
+      imageConfig: { aspectRatio, imageSize: size },
     },
   });
 
@@ -145,12 +137,7 @@ export const editImageWithFlash = async (base64Image: string, prompt: string) =>
     model: 'gemini-2.5-flash-image',
     contents: {
       parts: [
-        {
-          inlineData: {
-            mimeType: 'image/png', 
-            data: base64Image,
-          },
-        },
+        { inlineData: { mimeType: 'image/png', data: base64Image } },
         { text: prompt },
       ],
     },
@@ -170,12 +157,7 @@ export const analyzeImage = async (base64Image: string, prompt: string) => {
     model: 'gemini-3-pro-preview',
     contents: {
       parts: [
-        {
-          inlineData: {
-            mimeType: 'image/jpeg',
-            data: base64Image,
-          },
-        },
+        { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
         { text: prompt },
       ],
     },
@@ -183,7 +165,7 @@ export const analyzeImage = async (base64Image: string, prompt: string) => {
   return response.text;
 };
 
-// --- Video Lab (Veo) ---
+// --- Video Lab ---
 
 export const generateVideoFromPrompt = async (prompt: string, aspectRatio: '16:9' | '9:16') => {
   await ensurePaidApiKey();
@@ -199,16 +181,14 @@ export const generateVideoFromPrompt = async (prompt: string, aspectRatio: '16:9
     }
   });
 
-  // Polling
   while (!operation.done) {
-    await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5s
+    await new Promise(resolve => setTimeout(resolve, 5000));
     operation = await ai.operations.getVideosOperation({ operation: operation });
   }
 
   const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
   if (!downloadLink) throw new Error("Video generation failed");
   
-  // Append API key manually for fetch
   return `${downloadLink}&key=${process.env.API_KEY}`;
 };
 
@@ -243,7 +223,6 @@ export const animateImageWithVeo = async (base64Image: string, prompt: string | 
 
 export const analyzeVideo = async (file: File, prompt: string): Promise<string> => {
   const ai = getAiClient();
-  
   return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = async () => {
@@ -253,12 +232,7 @@ export const analyzeVideo = async (file: File, prompt: string): Promise<string> 
                   model: 'gemini-3-pro-preview',
                   contents: {
                       parts: [
-                          {
-                              inlineData: {
-                                  mimeType: file.type,
-                                  data: base64Data
-                              }
-                          },
+                          { inlineData: { mimeType: file.type, data: base64Data } },
                           { text: prompt }
                       ]
                   }
@@ -273,8 +247,7 @@ export const analyzeVideo = async (file: File, prompt: string): Promise<string> 
   });
 };
 
-
-// --- Social Speed (Flash Lite) ---
+// --- Social Speed ---
 
 export const generateFastSocialCopy = async (topic: string, platform: string) => {
   const ai = getAiClient();
@@ -282,5 +255,33 @@ export const generateFastSocialCopy = async (topic: string, platform: string) =>
     model: 'gemini-2.5-flash-lite',
     contents: `Write a viral ${platform} post about "${topic}". Keep it punchy, use emojis, and include hashtags.`,
   });
+  return response.text;
+};
+
+export const generateSocialCaptionFromMedia = async (base64Image: string | null, topic: string, platform: string) => {
+  const ai = getAiClient();
+  const parts: any[] = [];
+  
+  if (base64Image) {
+    parts.push({
+      inlineData: {
+        mimeType: 'image/jpeg',
+        data: base64Image.split(',')[1] // remove data:image/jpeg;base64,
+      }
+    });
+  }
+  
+  parts.push({
+    text: `You are a social media expert. Write 3 distinct, engaging, and viral captions for ${platform} based on this image (if provided) and the following topic/context: "${topic}". 
+    
+    If an image is provided, analyze it specifically to make the caption relevant to the visual content.
+    Include hashtags.`
+  });
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash', // Using standard Flash for multimodal vision
+    contents: { parts },
+  });
+  
   return response.text;
 };

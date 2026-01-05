@@ -27,29 +27,31 @@ export enum VideoResolution {
   P1080 = '1080p',
 }
 
-export interface ChatMessage {
-  role: 'user' | 'model';
-  text: string;
-  images?: string[]; // base64
-  groundingUrls?: { title: string; uri: string }[];
-  isThinking?: boolean;
-}
-
-export interface GeneratedMedia {
-  type: 'image' | 'video';
-  url: string;
-  prompt: string;
+export interface GeneratedAsset {
+  id: string;
+  type: 'image' | 'video' | 'copy';
+  content: string; // URL for media, text for copy
+  preview?: string; // Optional thumbnail or snippet
+  timestamp: number;
 }
 
 export interface ActiveCampaign {
   brandName: string;
-  visualStyle: string; // Describes the aesthetic for Image Gen
-  videoConcept: string; // A core video idea for Veo
-  socialHooks: string[]; // List of snappy headlines
+  visualStyle: string; 
+  videoConcept: string; 
+  socialHooks: string[]; 
   targetAudience: string;
 }
 
-// Window interface extension for AI Studio key selection
+// Common props for agents
+export interface AgentProps {
+  activeCampaign: ActiveCampaign | null;
+  history: GeneratedAsset[];
+  onAssetGenerated: (asset: GeneratedAsset) => void;
+  onNavigate?: (mode: AppMode) => void;
+  onActivateCampaign?: (campaign: ActiveCampaign) => void;
+}
+
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;

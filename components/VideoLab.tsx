@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { generateVideoFromPrompt, animateImageWithVeo, analyzeVideo, optimizePrompt } from '../services/geminiService';
-import { ActiveCampaign } from '../types';
+import { AgentProps } from '../types';
 
-interface VideoLabProps {
-  activeCampaign: ActiveCampaign | null;
-}
-
-export const VideoLab: React.FC<VideoLabProps> = ({ activeCampaign }) => {
+export const VideoLab: React.FC<AgentProps> = ({ activeCampaign, history, onAssetGenerated }) => {
   const [activeTab, setActiveTab] = useState<'text-to-video' | 'image-to-video' | 'analyze'>('text-to-video');
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
@@ -74,6 +70,15 @@ export const VideoLab: React.FC<VideoLabProps> = ({ activeCampaign }) => {
         url = await animateImageWithVeo(base64, prompt, aspectRatio);
       }
       setVideoResult(url);
+      
+      // Save to memory
+      onAssetGenerated({
+        id: Date.now().toString(),
+        type: 'video',
+        content: url,
+        timestamp: Date.now()
+      });
+
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -97,10 +102,12 @@ export const VideoLab: React.FC<VideoLabProps> = ({ activeCampaign }) => {
     }
   };
 
+  const recentVideos = history.filter(a => a.type === 'video');
+
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-orange-400">
+        <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-orange-400 tracking-tight">
           Veo Video Lab
         </h2>
         <div className="bg-slate-900 rounded-lg p-1 flex space-x-1 border border-slate-800">
@@ -120,9 +127,9 @@ export const VideoLab: React.FC<VideoLabProps> = ({ activeCampaign }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Controls */}
-        <div className="lg:col-span-1 bg-slate-900 rounded-xl p-6 border border-slate-800 space-y-6 h-fit">
+        <div className="lg:col-span-1 bg-slate-900 rounded-xl p-6 border border-slate-800 space-y-6 h-fit shadow-lg">
           {activeTab !== 'analyze' ? (
             <>
               <div className="flex justify-between items-center">
@@ -133,20 +140,23 @@ export const VideoLab: React.FC<VideoLabProps> = ({ activeCampaign }) => {
               </div>
               
               {activeTab === 'image-to-video' && (
-                <div className="border-2 border-dashed border-slate-700 rounded-lg p-4 text-center cursor-pointer relative hover:border-orange-500 transition-colors">
+                <div className="border-2 border-dashed border-slate-700 rounded-lg p-4 text-center cursor-pointer relative hover:border-orange-500 transition-colors bg-slate-950/50">
                    <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
                    {sourceImage ? (
-                     <img src={sourceImage} className="h-32 mx-auto object-contain" alt="Source" />
+                     <img src={sourceImage} className="h-32 mx-auto object-contain rounded" alt="Source" />
                    ) : (
-                     <p className="text-xs text-slate-500">Upload source image</p>
+                     <div className="space-y-1">
+                        <span className="text-2xl block">🖼️</span>
+                        <p className="text-xs text-slate-500">Upload source image</p>
+                     </div>
                    )}
                 </div>
               )}
 
               <div>
-                <label className="text-xs uppercase tracking-wider text-slate-500 mb-2 block">Prompt</label>
+                <label className="text-xs uppercase tracking-wider text-slate-500 mb-2 block font-bold">Prompt</label>
                 <textarea 
-                  className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-sm h-32 focus:ring-1 focus:ring-orange-500 outline-none"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm h-32 focus:ring-2 focus:ring-orange-500 outline-none"
                   placeholder={activeTab === 'text-to-video' ? "A cinematic drone shot of a futuristic city..." : "Make the water flow and clouds move..."}
                   value={prompt}
                   onChange={e => setPrompt(e.target.value)}
@@ -161,13 +171,13 @@ export const VideoLab: React.FC<VideoLabProps> = ({ activeCampaign }) => {
               </div>
 
               <div>
-                <label className="text-xs uppercase tracking-wider text-slate-500 mb-2 block">Aspect Ratio</label>
+                <label className="text-xs uppercase tracking-wider text-slate-500 mb-2 block font-bold">Aspect Ratio</label>
                 <div className="flex gap-2">
                   {(['16:9', '9:16'] as const).map(r => (
                     <button
                       key={r}
                       onClick={() => setAspectRatio(r)}
-                      className={`flex-1 py-2 rounded border text-sm ${aspectRatio === r ? 'bg-orange-600/20 border-orange-600 text-orange-400' : 'bg-slate-950 border-slate-700 text-slate-400'}`}
+                      className={`flex-1 py-2 rounded border text-sm transition-all ${aspectRatio === r ? 'bg-orange-600/20 border-orange-600 text-orange-400' : 'bg-slate-950 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
                     >
                       {r}
                     </button>
@@ -178,7 +188,7 @@ export const VideoLab: React.FC<VideoLabProps> = ({ activeCampaign }) => {
               <button 
                 onClick={handleGenerate}
                 disabled={loading || (activeTab === 'image-to-video' && !sourceImage) || (activeTab === 'text-to-video' && !prompt)}
-                className="w-full py-3 bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-500 hover:to-pink-500 rounded font-bold text-white transition-all disabled:opacity-50"
+                className="w-full py-3 bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-500 hover:to-pink-500 rounded-lg font-bold text-white transition-all disabled:opacity-50 shadow-lg shadow-orange-900/30"
               >
                 {loading ? 'Processing...' : 'Generate Video'}
               </button>
@@ -186,9 +196,11 @@ export const VideoLab: React.FC<VideoLabProps> = ({ activeCampaign }) => {
           ) : (
             <>
                <h3 className="text-lg font-semibold text-blue-400">Video Analysis</h3>
-               <input type="file" accept="video/*" onChange={handleVideoUpload} className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-slate-800 file:text-blue-400 hover:file:bg-slate-700"/>
+               <div className="border border-slate-700 rounded-lg p-2 bg-slate-950">
+                  <input type="file" accept="video/*" onChange={handleVideoUpload} className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-slate-800 file:text-blue-400 hover:file:bg-slate-700"/>
+               </div>
                <textarea 
-                  className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-sm h-32 focus:ring-1 focus:ring-blue-500 outline-none"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm h-32 focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="Ask something about the video..."
                   value={analysisPrompt}
                   onChange={e => setAnalysisPrompt(e.target.value)}
@@ -196,7 +208,7 @@ export const VideoLab: React.FC<VideoLabProps> = ({ activeCampaign }) => {
                <button 
                   onClick={handleAnalyze}
                   disabled={loading || !videoFile}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded font-bold text-white transition-all disabled:opacity-50"
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-white transition-all disabled:opacity-50"
                 >
                   {loading ? 'Analyzing...' : 'Analyze Video'}
                 </button>
@@ -207,29 +219,48 @@ export const VideoLab: React.FC<VideoLabProps> = ({ activeCampaign }) => {
         </div>
 
         {/* Output Area */}
-        <div className="lg:col-span-2 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center p-4 min-h-[500px]">
+        <div className="lg:col-span-2 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-center p-4 min-h-[500px] shadow-xl">
           {activeTab !== 'analyze' ? (
              videoResult ? (
                <video src={videoResult} controls autoPlay loop className="max-h-[500px] max-w-full rounded shadow-2xl" />
              ) : (
                <div className="text-center text-slate-600">
-                 <span className="text-6xl block mb-4">🎬</span>
-                 <p>Veo generations appear here</p>
+                 <span className="text-6xl block mb-4 opacity-50">🎬</span>
+                 <p className="font-medium">Veo generations appear here</p>
                </div>
              )
           ) : (
              analysisResult ? (
                <div className="w-full h-full p-4 overflow-y-auto">
                  <h4 className="text-blue-400 font-bold mb-2">Analysis Result:</h4>
-                 <p className="text-slate-300 whitespace-pre-wrap">{analysisResult}</p>
+                 <p className="text-slate-300 whitespace-pre-wrap leading-relaxed">{analysisResult}</p>
                </div>
              ) : (
                <div className="text-center text-slate-600">
-                 <span className="text-6xl block mb-4">👁️</span>
-                 <p>Video insights appear here</p>
+                 <span className="text-6xl block mb-4 opacity-50">👁️</span>
+                 <p className="font-medium">Video insights appear here</p>
                </div>
              )
           )}
+        </div>
+
+        {/* Memory */}
+        <div className="lg:col-span-1 space-y-4">
+             <h3 className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-2">Recent Videos</h3>
+             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                {recentVideos.length === 0 && (
+                     <p className="text-center text-xs text-slate-600 py-4 italic">No videos yet</p>
+                )}
+                {recentVideos.map((asset) => (
+                    <div key={asset.id} className="bg-slate-900 border border-slate-800 rounded-lg p-2 hover:border-orange-500/50 cursor-pointer group" onClick={() => setVideoResult(asset.content)}>
+                        <video src={asset.content} className="w-full rounded bg-black aspect-video object-cover" muted />
+                        <div className="mt-2 flex justify-between items-center px-1">
+                            <span className="text-[10px] text-slate-500">{new Date(asset.timestamp).toLocaleTimeString()}</span>
+                            <span className="text-[10px] text-orange-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Play</span>
+                        </div>
+                    </div>
+                ))}
+             </div>
         </div>
       </div>
     </div>
