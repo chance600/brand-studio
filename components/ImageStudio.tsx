@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { generateProImage, editImageWithFlash, analyzeImage, optimizePrompt } from '../services/geminiService';
 import { AspectRatio, ImageSize, AgentProps } from '../types';
 
-export const ImageStudio: React.FC<AgentProps> = ({ activeCampaign, history, onAssetGenerated }) => {
+export const ImageStudio: React.FC<AgentProps> = ({ activeCampaign, history, onAssetGenerated, navigationPayload }) => {
   const [activeTab, setActiveTab] = useState<'generate' | 'remix' | 'analyze'>('generate');
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
@@ -23,12 +24,14 @@ export const ImageStudio: React.FC<AgentProps> = ({ activeCampaign, history, onA
   const [analyzePrompt, setAnalyzePrompt] = useState('');
   const [analysisResult, setAnalysisResult] = useState('');
 
-  // Auto-fill
+  // Auto-fill from payload or campaign
   useEffect(() => {
-    if (activeCampaign && activeTab === 'generate' && !genPrompt) {
+    if (navigationPayload?.prefillPrompt) {
+      setGenPrompt(navigationPayload.prefillPrompt);
+    } else if (activeCampaign && activeTab === 'generate' && !genPrompt) {
       setGenPrompt(`Create a high-quality marketing image for ${activeCampaign.brandName}. ${activeCampaign.visualStyle}`);
     }
-  }, [activeCampaign, activeTab]);
+  }, [activeCampaign, activeTab, navigationPayload]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setSource: (val: string) => void) => {
     const file = e.target.files?.[0];
@@ -142,7 +145,8 @@ export const ImageStudio: React.FC<AgentProps> = ({ activeCampaign, history, onA
                 <div className="space-y-5">
                 <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-purple-400">Generation Config</h3>
-                    {activeCampaign && <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-1 rounded border border-purple-500/30">Campaign Active</span>}
+                    {navigationPayload?.prefillPrompt && <span className="text-xs bg-cyan-900/50 text-cyan-300 px-2 py-1 rounded border border-cyan-500/30 font-mono italic">Blueprint Applied</span>}
+                    {activeCampaign && !navigationPayload?.prefillPrompt && <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-1 rounded border border-purple-500/30">Campaign Active</span>}
                 </div>
                 
                 <div>

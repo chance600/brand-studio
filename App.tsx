@@ -1,15 +1,23 @@
+
 import React, { useState } from 'react';
 import { StrategyAgent } from './components/StrategyAgent';
 import { ImageStudio } from './components/ImageStudio';
 import { VideoLab } from './components/VideoLab';
 import { SocialSpeed } from './components/SocialSpeed';
+import { TrendMimic } from './components/TrendMimic';
 import { AppMode, ActiveCampaign, GeneratedAsset } from './types';
-import { v4 as uuidv4 } from 'uuid'; // Fallback ID gen if needed, but we'll use simple Date
 
 const App: React.FC = () => {
   const [mode, setMode] = useState<AppMode>(AppMode.STRATEGY);
   const [campaign, setCampaign] = useState<ActiveCampaign | null>(null);
   const [history, setHistory] = useState<GeneratedAsset[]>([]);
+  const [navigationPayload, setNavigationPayload] = useState<any>(null);
+
+  // Helper to navigate with payload
+  const handleNavigate = (newMode: AppMode, payload?: any) => {
+    setNavigationPayload(payload || null);
+    setMode(newMode);
+  };
 
   // Helper to add assets to memory
   const addAsset = (asset: GeneratedAsset) => {
@@ -21,13 +29,14 @@ const App: React.FC = () => {
       activeCampaign: campaign,
       history,
       onAssetGenerated: addAsset,
+      onNavigate: handleNavigate,
+      navigationPayload
     };
 
     switch (mode) {
       case AppMode.STRATEGY: 
         return <StrategyAgent 
           {...commonProps} 
-          onNavigate={setMode} 
           onActivateCampaign={setCampaign} 
         />;
       case AppMode.IMAGE_STUDIO: 
@@ -36,10 +45,11 @@ const App: React.FC = () => {
         return <VideoLab {...commonProps} />;
       case AppMode.SOCIAL_SPEED: 
         return <SocialSpeed {...commonProps} />;
+      case AppMode.TREND_MIMIC:
+        return <TrendMimic {...commonProps} />;
       default: 
         return <StrategyAgent 
           {...commonProps} 
-          onNavigate={setMode} 
           onActivateCampaign={setCampaign} 
         />;
     }
@@ -62,28 +72,35 @@ const App: React.FC = () => {
         <div className="flex-1 p-3 space-y-1 overflow-y-auto">
           <NavItem 
             active={mode === AppMode.STRATEGY} 
-            onClick={() => setMode(AppMode.STRATEGY)} 
+            onClick={() => handleNavigate(AppMode.STRATEGY)} 
             icon="🧠" 
             label="Strategy" 
             desc="Mission Control"
           />
           <NavItem 
+            active={mode === AppMode.TREND_MIMIC} 
+            onClick={() => handleNavigate(AppMode.TREND_MIMIC)} 
+            icon="📐" 
+            label="Blueprint" 
+            desc="Trend DNA"
+          />
+          <NavItem 
             active={mode === AppMode.IMAGE_STUDIO} 
-            onClick={() => setMode(AppMode.IMAGE_STUDIO)} 
+            onClick={() => handleNavigate(AppMode.IMAGE_STUDIO)} 
             icon="🎨" 
             label="Image Studio"
             desc="Gen & Remix" 
           />
           <NavItem 
             active={mode === AppMode.VIDEO_LAB} 
-            onClick={() => setMode(AppMode.VIDEO_LAB)} 
+            onClick={() => handleNavigate(AppMode.VIDEO_LAB)} 
             icon="🎥" 
             label="Video Lab" 
             desc="Veo Production"
           />
           <NavItem 
             active={mode === AppMode.SOCIAL_SPEED} 
-            onClick={() => setMode(AppMode.SOCIAL_SPEED)} 
+            onClick={() => handleNavigate(AppMode.SOCIAL_SPEED)} 
             icon="⚡" 
             label="Social Speed"
             desc="Viral Copy" 
